@@ -106,7 +106,6 @@ inputs:
       is_expand: true
       is_sensitive: true
       is_required: true
-      value_options: []
   - microsoft_client_id:
     opts:
       category: Microsoft Authentication
@@ -117,7 +116,6 @@ inputs:
       is_expand: true
       is_sensitive: true
       is_required: true
-      value_options: []
   - microsoft_client_secret:
     opts:
       category: Microsoft Authentication
@@ -128,7 +126,6 @@ inputs:
       is_expand: true
       is_sensitive: true
       is_required: true
-      value_options: []
   - android_apk_path:
     opts:
       category: Android App Details
