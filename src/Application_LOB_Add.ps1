@@ -922,7 +922,7 @@ param
             }
 
         # Creating temp file name from Source File path
-        $tempFile = [System.IO.Path]::GetDirectoryName("$SourceFile") + "\" + [System.IO.Path]::GetFileNameWithoutExtension("$SourceFile") + "_temp.bin"
+        $tempFile = [System.IO.Path]::GetDirectoryName("$SourceFile") + "/" + [System.IO.Path]::GetFileNameWithoutExtension("$SourceFile") + "_temp.bin"
         
         # Creating filename variable from Source File Path
         $filename = [System.IO.Path]::GetFileName("$SourceFile")
@@ -1050,14 +1050,14 @@ $sleep = 30
 ####################################################
 
 try {
-	if($Env:android_apk_path){
-		Write-Host "Uploading APK at path $Env:android_apk_path"
-		Upload-AndroidLob -sourceFile $Env:android_apk_path -publisher $Env:android_publisher -description $Env:android_description -identityName $Env:android_identity_name -identityVersion $Env:android_identity_version -versionName $Env:android_version_name
-	}
+	# if($Env:android_apk_path){
+	# 	Write-Host "Uploading APK at path $Env:android_apk_path"
+	# 	Upload-AndroidLob -sourceFile $Env:android_apk_path -publisher $Env:android_publisher -description $Env:android_description -identityName $Env:android_identity_name -identityVersion $Env:android_identity_version -versionName $Env:android_version_name
+	# }
 
 	if($Env:ios_ipa_path){
 		Write-Host "Uploading IPA at path $Env:ios_ipa_path"
-		# Upload-iOSLob -sourceFile "C:\Software\iOS\MyApp.ipa" -displayName "MyApp.ipa" -publisher "MyApp" -description "MyApp" -bundleId "com.microsoft.myApp" -identityVersion "1.0.0.0" -versionNumber "3.0.0" -expirationDateTime "2018-03-14T20:53:52Z"
+		Upload-iOSLob -sourceFile $Env:ios_ipa_path -displayName $Env:ios_display_name -publisher $Env:ios_publisher -description $Env:ios_description -bundleId $Env:ios_bundle_id -identityVersion $Env:ios_identity_version -versionNumber $Env:ios_version_number -expirationDateTime $Env:ios_expiration
 	}
 } catch {
 	Write-Host "An error occurred:"

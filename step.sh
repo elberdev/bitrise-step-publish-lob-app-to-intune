@@ -15,7 +15,7 @@ if [ -z "$ios_ipa_path" ];
     then echo "Skipping IPA upload. No IPA path provided"; 
 else 
     echo "iOS IPA to be uploaded: '$ios_ipa_path'"; 
-    if [ -z "$ios_publisher" ] || [ -z "$ios_description" ] || [ -z "$ios_display_name" ] || [ -z "$ios_identity_version" ] || [ -z "$ios_version_name" ] || [ -z "$ios_bundle_id" ] || [ -z "$ios_expiration"]; then
+    if [ -z "$ios_publisher" ] || [ -z "$ios_description" ] || [ -z "$ios_display_name" ] || [ -z "$ios_identity_version" ] || [ -z "$ios_version_number" ] || [ -z "$ios_bundle_id" ] || [ -z "$ios_expiration"]; then
         echo "Error: iOS IPA provided without necessary metadata. The step requires: display name, publisher, description, identity version, version number, bundle id, and expiration." >&2
         exit 1
     fi
