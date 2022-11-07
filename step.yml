@@ -76,8 +76,8 @@ type_tags:
 # You can find more information about this in the documentation here:
 # https://devcenter.bitrise.io/en/steps-and-workflows/developing-your-own-bitrise-step/developing-a-new-step.html#setting-conditions-for-running-the-step
 #
-# is_always_run: false
-# is_skippable: false
+is_always_run: false
+is_skippable: false
 # run_if: ""
 
 # Use the `deps` property to declare dependencies that you can fetch from an OS dependency manager.
@@ -133,14 +133,12 @@ inputs:
       summary: Path to the APK file that will be uploaded to Microsoft Endpoint Manager 
       description: |
         The apk of the Line of Business app to be sent to Microsoft Endpoint Manager.
-      is_expand: true
       is_required: false
-      value_options: []
   - android_publisher:
     opts:
       category: Android App Details
       title: "Publisher"
-      summary: 
+      summary: Name of publisher
       description: |
         The publisher of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
       is_required: false
@@ -148,41 +146,34 @@ inputs:
     opts:
       category: Android App Details
       title: "Description"
-      summary: 
+      summary: Description of app
       description: |
         The description of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
       is_required: false
-      value_options: []
   - android_identity_name:
     opts:
       category: Android App Details
       title: "Identity Name"
-      summary: 
+      summary: Identity Name
       description: |
         The identity name of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
-      is_expand: true
       is_required: false
-      value_options: []
   - android_identity_version:
     opts:
       category: Android App Details
       title: "Identity Version"
-      summary: 
+      summary: Identity Version
       description: |
         The identity version of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
-      is_expand: true
       is_required: false
-      value_options: []
   - android_version_name:
     opts:
       category: Android App Details
       title: "Version Name"
-      summary: 
+      summary: Version Name
       description: |
         The version name of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
-      is_expand: true
       is_required: false
-      value_options: []
   - ios_ipa_path:
     opts:
       category: iOS App Details
