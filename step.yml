@@ -1,0 +1,271 @@
+#
+# A couple of useful guides & docs:
+#
+# - Main Bitrise CLI docs: https://github.com/bitrise-io/bitrise/tree/master/_docs
+# - Step Development Guideline: https://github.com/bitrise-io/bitrise/blob/master/_docs/step-development-guideline.md
+# - Bitrise.yml format spec: https://github.com/bitrise-io/bitrise/blob/master/_docs/bitrise-yml-format-spec.md
+# - Bitrise docs: http://devcenter.bitrise.io/
+# - Bitrise CLI guides: http://devcenter.bitrise.io/bitrise-cli/
+
+title: |-
+  Publish LOB App to Intune
+summary: |
+  Publishes iOS and Android Line Of Business apps to Microsoft Endpoint Manager (Intune)
+description: |
+  Specify the path to an APK or IPA file as well as app metadata. The step will publish the file to Microsoft Endpoint Manager (Intune).
+
+  Auth requireed inputs:
+  * Microsoft Tenant ID
+  * Microsoft Client ID
+  * Microsoft Client Secret
+  
+  [Auth background](https://learn.microsoft.com/en-us/graph/auth/)
+
+  iOS required inputs:
+  * path to IPA file (ex. "/path/to/MyApp.ipa")
+  * display name (ex. "MyApp")
+  * publisher (ex. "MeCorp")
+  * description (ex. "Sample Bitrise App")
+  * bundle id (ex. "com.MeCorp.SampleApp")
+  * identity version (ex. "1.0.0")
+  * version number (ex. "3.0.0")
+  * expiration (ex. "2023-03-14T20:53:52Z")
+
+  [iOS LOB Schema](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
+
+  Android required inputs:
+  * path to APK file (ex. "/path/to/MyApp.apk")
+  * publisher (ex. "MeCorp")
+  * description (ex. "Sample Bitrise App")
+  * identity name (ex. "com.MeCorp.SampleApp")
+  * identity version (ex. "1")
+  * version name (ex. "1.0")
+
+  [Android LOB Schema](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
+
+website: https://github.com/benbitrise/bitrise-step-publish-lob-app-to-intune
+source_code_url: https://github.com/benbitrise/bitrise-step-publish-lob-app-to-intune
+support_url: https://github.com/benbitrise/bitrise-step-publish-lob-app-to-intune/issues
+
+# If this step should be available only for certain project types
+# just uncomment this `project_type_tags` section and include all the
+# project types supported by the step. If the step can be used for all
+# project types then you can just remove this section.
+# If no `project_type_tags` specified (or specified as an empty array)
+# that means the step can be used for any project type.
+# You can find more information about project type tags in the Step Development Guideline:
+# https://github.com/bitrise-io/bitrise/blob/master/_docs/step-development-guideline.md
+#
+# project_type_tags:
+#   - ios
+#   - macos
+#   - android
+#   - xamarin
+#   - react-native
+#   - cordova
+#   - ionic
+#   - flutter
+
+# Type tags are used for categorizing steps, for easier step discovery in Step Libraries.
+# You can find more information about type tags in the Step Development Guideline:
+# https://github.com/bitrise-io/bitrise/blob/master/_docs/step-development-guideline.md
+type_tags:
+  - deploy
+
+# These properties define whether a Step is run in a given Workflow or not.
+# You can find more information about this in the documentation here:
+# https://devcenter.bitrise.io/en/steps-and-workflows/developing-your-own-bitrise-step/developing-a-new-step.html#setting-conditions-for-running-the-step
+#
+# is_always_run: false
+# is_skippable: false
+# run_if: ""
+
+# Use the `deps` property to declare dependencies that you can fetch from an OS dependency manager.
+# You can find more information about this in the documentation here:
+# https://devcenter.bitrise.io/en/steps-and-workflows/developing-your-own-bitrise-step/developing-a-new-step.html#submodules-and-step-dependencies
+#
+deps:
+  brew:
+  - name: powershell
+
+
+toolkit:
+  bash:
+    entry_file: step.sh
+
+
+inputs:
+  - microsoft_tenant_id:
+    opts:
+      category: Microsoft Authentication
+      title: "Microsoft Tenant ID"
+      summary: Tenant ID 
+      description: |
+        GUID the defines your Microsoft Team.
+        Guide to finding your tenant id: https://learn.microsoft.com/en-us/sharepoint/find-your-office-365-tenant-id
+      is_expand: true
+      is_sensitive: true
+      is_required: true
+      value_options: []
+  - microsoft_client_id:
+    opts:
+      category: Microsoft Authentication
+      title: "Microsoft Client ID"
+      summary: Client ID 
+      description: |
+        The application ID assigned by the [Azure app registration portal](https://go.microsoft.com/fwlink/?linkid=2083908)
+      is_expand: true
+      is_sensitive: true
+      is_required: true
+      value_options: []
+  - microsoft_client_secret:
+    opts:
+      category: Microsoft Authentication
+      title: "Microsoft Client Secret"
+      summary: Client Secret 
+      description: |
+        The client secret assigned by the [Azure app registration portal](https://go.microsoft.com/fwlink/?linkid=2083908)
+      is_expand: true
+      is_sensitive: true
+      is_required: true
+      value_options: []
+  - android_apk_path:
+    opts:
+      category: Android App Details
+      title: "APK Path"
+      summary: Path to the APK file that will be uploaded to Microsoft Endpoint Manager 
+      description: |
+        The apk of the Line of Business app to be sent to Microsoft Endpoint Manager.
+      is_expand: true
+      is_required: false
+      value_options: []
+  - android_publisher:
+    opts:
+      category: Android App Details
+      title: "Publisher"
+      summary: 
+      description: |
+        The publisher of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
+  - android_description:
+    opts:
+      category: Android App Details
+      title: "Description"
+      summary: 
+      description: |
+        The description of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
+  - android_identity_name:
+    opts:
+      category: Android App Details
+      title: "Identity Name"
+      summary: 
+      description: |
+        The identity name of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
+  - android_identity_version:
+    opts:
+      category: Android App Details
+      title: "Identity Version"
+      summary: 
+      description: |
+        The identity version of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
+  - android_version_name:
+    opts:
+      category: Android App Details
+      title: "Version Name"
+      summary: 
+      description: |
+        The version name of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
+  - ios_ipa_path:
+    opts:
+      category: iOS App Details
+      title: "IPA Path"
+      summary: Path to the IPA file that will be uploaded to Microsoft Endpoint Manager
+      description: |
+        The IPA of the Line of Business app to be sent to Microsoft Endpoint Manager.
+      is_expand: true
+      is_required: false
+      value_options: []
+  - ios_publisher:
+    opts:
+      category: iOS App Details
+      title: "Publisher"
+      summary: 
+      description: |
+        The publisher of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
+  - ios_display_name:
+    opts:
+      category: iOS App Details
+      title: "Display Name"
+      summary: 
+      description: |
+        The display name of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
+  - ios_description:
+    opts:
+      category: iOS App Details
+      title: "Description"
+      summary: 
+      description: |
+        The description of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
+  - ios_identity_version:
+    opts:
+      category: iOS App Details
+      title: "Identity Version"
+      summary: 
+      description: |
+        The identity version of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
+  - ios_bundle_id:
+    opts:
+      category: iOS App Details
+      title: "Bundle Id"
+      summary: 
+      description: |
+        The bundle id of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
+  - ios_version_number:
+    opts:
+      category: iOS App Details
+      title: "Version Number"
+      summary: 
+      description: |
+        The version number of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
+  - ios_expiration:
+    opts:
+      category: iOS App Details
+      title: "Expiration"
+      summary: 
+      description: |
+        The expiration of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
+      is_expand: true
+      is_required: false
+      value_options: []
