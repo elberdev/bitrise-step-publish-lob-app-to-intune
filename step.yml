@@ -143,9 +143,7 @@ inputs:
       summary: 
       description: |
         The publisher of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
-      is_expand: true
       is_required: false
-      value_options: []
   - android_description:
     opts:
       category: Android App Details
