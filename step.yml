@@ -95,7 +95,7 @@ toolkit:
 
 
 inputs:
-  - microsoft_tenant_id:
+  - microsoft_tenant_id: $MSFT_TENANT_ID
     opts:
       category: Microsoft Authentication
       title: "Microsoft Tenant ID"
@@ -106,7 +106,7 @@ inputs:
       is_expand: true
       is_sensitive: true
       is_required: true
-  - microsoft_client_id:
+  - microsoft_client_id: $MSFT_CLIENT_ID
     opts:
       category: Microsoft Authentication
       title: "Microsoft Client ID"
@@ -116,7 +116,7 @@ inputs:
       is_expand: true
       is_sensitive: true
       is_required: true
-  - microsoft_client_secret:
+  - microsoft_client_secret: $MSFT_CLIENT_SECRET
     opts:
       category: Microsoft Authentication
       title: "Microsoft Client Secret"
@@ -126,7 +126,7 @@ inputs:
       is_expand: true
       is_sensitive: true
       is_required: true
-  - android_apk_path:
+  - android_apk_path: $BITRISE_SIGNED_APK_PATH
     opts:
       category: Android App Details
       title: "APK Path"
