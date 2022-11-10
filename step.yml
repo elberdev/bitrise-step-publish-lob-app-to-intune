@@ -181,7 +181,6 @@ inputs:
       summary: Path to the IPA file that will be uploaded to Microsoft Endpoint Manager
       description: |
         The IPA of the Line of Business app to be sent to Microsoft Endpoint Manager.
-      is_expand: true
       is_required: false
       value_options: []
   - ios_publisher:
