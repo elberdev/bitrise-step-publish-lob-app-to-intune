@@ -182,7 +182,7 @@ inputs:
       description: |
         The IPA of the Line of Business app to be sent to Microsoft Endpoint Manager.
       is_required: false
-      value_options: []
+      is_expand: true
   - ios_publisher:
     opts:
       category: iOS App Details
