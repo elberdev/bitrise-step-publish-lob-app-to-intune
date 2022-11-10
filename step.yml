@@ -134,6 +134,7 @@ inputs:
       description: |
         The apk of the Line of Business app to be sent to Microsoft Endpoint Manager.
       is_required: false
+      is_expand: true
   - android_publisher:
     opts:
       category: Android App Details
@@ -142,6 +143,7 @@ inputs:
       description: |
         The publisher of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
       is_required: false
+      is_expand: true
   - android_description:
     opts:
       category: Android App Details
@@ -150,6 +152,7 @@ inputs:
       description: |
         The description of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
       is_required: false
+      is_expand: true
   - android_identity_name:
     opts:
       category: Android App Details
@@ -158,6 +161,7 @@ inputs:
       description: |
         The identity name of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
       is_required: false
+      is_expand: true
   - android_identity_version:
     opts:
       category: Android App Details
@@ -166,6 +170,7 @@ inputs:
       description: |
         The identity version of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
       is_required: false
+      is_expand: true
   - android_version_name:
     opts:
       category: Android App Details
@@ -174,6 +179,7 @@ inputs:
       description: |
         The version name of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-androidlobapp?view=graph-rest-1.0)
       is_required: false
+      is_expand: true
   - ios_ipa_path:
     opts:
       category: iOS App Details
@@ -192,7 +198,6 @@ inputs:
         The publisher of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
       is_expand: true
       is_required: false
-      value_options: []
   - ios_display_name:
     opts:
       category: iOS App Details
@@ -202,7 +207,6 @@ inputs:
         The display name of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
       is_expand: true
       is_required: false
-      value_options: []
   - ios_description:
     opts:
       category: iOS App Details
@@ -212,7 +216,6 @@ inputs:
         The description of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
       is_expand: true
       is_required: false
-      value_options: []
   - ios_identity_version:
     opts:
       category: iOS App Details
@@ -222,7 +225,6 @@ inputs:
         The identity version of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
       is_expand: true
       is_required: false
-      value_options: []
   - ios_bundle_id:
     opts:
       category: iOS App Details
@@ -232,7 +234,6 @@ inputs:
         The bundle id of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
       is_expand: true
       is_required: false
-      value_options: []
   - ios_version_number:
     opts:
       category: iOS App Details
@@ -242,7 +243,6 @@ inputs:
         The version number of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
       is_expand: true
       is_required: false
-      value_options: []
   - ios_expiration:
     opts:
       category: iOS App Details
@@ -252,4 +252,3 @@ inputs:
         The expiration of the Line of Business app to be sent to [Microsoft Endpoint Manager](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-ioslobapp?view=graph-rest-1.0)
       is_expand: true
       is_required: false
-      value_options: []
