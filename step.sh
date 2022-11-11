@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+echo "Starting Intune Step"
+
 if [ -z "$android_apk_path" ]; 
     then echo "Skipping APK upload. No APK path provided"; 
 else 
