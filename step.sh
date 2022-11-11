@@ -32,6 +32,9 @@ echo '$' "npm i @azure/identity"
 npm i @azure/identity
 echo '$' "npm i @microsoft/microsoft-graph-client"
 npm i @microsoft/microsoft-graph-client
+echo '$' "npm i isomorphic-fetch"
+npm i isomorphic-fetch
+
 
 echo '$' "node "$THIS_SCRIPT_DIR/src/msft_auth.js""
 
