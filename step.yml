@@ -87,7 +87,11 @@ is_skippable: false
 deps:
   brew:
   - name: powershell
-
+apt_get:
+  - name: wget
+  - name: apt-transport-https
+  - name: software-properties-common
+  - name: powershell
 
 toolkit:
   bash:
