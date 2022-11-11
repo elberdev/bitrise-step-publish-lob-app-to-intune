@@ -424,6 +424,8 @@ function GetiOSAppBody($displayName, $publisher, $description, $filename, $bundl
 	$body.description = $description;
 	$body.fileName = $filename;
 	$body.bundleId = $bundleId;
+	$body.buildNumber = $versionNumber;
+	$body.versionNumber = $versionNumber;
 	$body.identityVersion = $identityVersion;
 	if ($minimumSupportedOperatingSystem -eq $null)
 	{
