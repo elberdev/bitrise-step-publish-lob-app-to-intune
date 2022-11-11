@@ -3,9 +3,9 @@ const { TokenCredentialAuthenticationProvider } = require("@microsoft/microsoft-
 const { ClientSecretCredential } = require("@azure/identity");
 
 
-const tenantId = process.env.MICROSOFT_TENANT_ID;
-const clientId = process.env.MICROSOFT_CLIENT_ID;
-const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
+const tenantId = process.env.microsoft_tenant_id;
+const clientId = process.env.microsoft_client_id;
+const clientSecret = process.env.microsoft_client_secret;
 
 const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
 const authProvider = new TokenCredentialAuthenticationProvider(credential, { scopes: ["https://graph.microsoft.com/.default"] })
