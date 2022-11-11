@@ -1,6 +1,7 @@
 const { Client } = require("@microsoft/microsoft-graph-client");
 const { TokenCredentialAuthenticationProvider } = require("@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials");
 const { ClientSecretCredential } = require("@azure/identity");
+require('isomorphic-fetch');
 
 
 const tenantId = process.env.microsoft_tenant_id;
