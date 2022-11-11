@@ -91,7 +91,6 @@ deps:
   - name: wget
   - name: apt-transport-https
   - name: software-properties-common
-  - name: powershell
 
 toolkit:
   bash:
