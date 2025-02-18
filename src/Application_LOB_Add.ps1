@@ -508,7 +508,7 @@ Function GetCurrentApp($displayName, $collectionPath) {
 
 Function ShouldUpdate($appResponse, $versionNumber) {
     Write-Host "Upload version: " + $versionNumber;
-    Write-Host "Prior version: " + $appResponse.value[0].id;
+    Write-Host "Prior version: " + $appResponse.value[0].versionNumber;
     if (($appResponse.value.Length -gt 0) -and (-not [string]::IsNullOrEmpty($appResponse.value[0].id))) {
         return $true;
     }
@@ -878,14 +878,11 @@ NAME: Upload-iOSLOB
             $appUri = "mobileApps/$id";
         } else {
             $verb = "POST";
-            # $mobileAppBody.categories = @();
             $appUri = "mobileApps/"
         }
-        Write-Host $verb $appUri;
 
         Write-Host "`nPush application to Intune..." -ForegroundColor Yellow
         $mobileApp = MakeRequest $verb $appUri ($mobileAppBody | ConvertTo-Json);
-        Write-Host ([string]::IsNullOrEmpty($mobileApp));
 
         if ([string]::IsNullOrEmpty($mobileApp)) {
             $appId = $mobileAppBody.id;
@@ -1002,7 +999,7 @@ try {
 
     if ($Env:ios_ipa_path) {
         Write-Host "`nUploading IPA at path $Env:ios_ipa_path"
-       Upload-iOSLob -sourceFile $Env:ios_ipa_path -displayName $Env:ios_display_name -publisher $Env:ios_publisher -description $Env:ios_description -bundleId $Env:ios_bundle_id -identityVersion $Env:ios_identity_version -versionNumber $Env:ios_version_number -expirationDateTime $Env:ios_expiration
+        Upload-iOSLob -sourceFile $Env:ios_ipa_path -displayName $Env:ios_display_name -publisher $Env:ios_publisher -description $Env:ios_description -bundleId $Env:ios_bundle_id -identityVersion $Env:ios_identity_version -versionNumber $Env:ios_version_number -expirationDateTime $Env:ios_expiration
     }
 }
 catch {
