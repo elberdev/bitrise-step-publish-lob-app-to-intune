@@ -4,533 +4,522 @@ Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT
 See LICENSE in the project root for license information.
 #>
 
-
 ####################################################
 
-function CloneObject($object){
+function WriteHeaders($authToken) {
 
-	$stream = New-Object IO.MemoryStream;
-	$formatter = New-Object Runtime.Serialization.Formatters.Binary.BinaryFormatter;
-	$formatter.Serialize($stream, $object);
-	$stream.Position = 0;
-	$formatter.Deserialize($stream);
+    foreach ($header in $authToken.GetEnumerator()) {
+        if ($header.Name.ToLower() -eq "authorization")
+        {
+        	continue;
+        }
+
+        Write-Host -ForegroundColor Gray "`n$($header.Name): $($header.Value)";
+    }
+    Write-Host
 }
 
 ####################################################
 
-function WriteHeaders($authToken){
+function MakeGetRequest($collectionPath, $params) {
 
-	foreach ($header in $authToken.GetEnumerator())
-	{
-		if ($header.Name.ToLower() -eq "authorization")
-		{
-			continue;
-		}
-
-		Write-Host -ForegroundColor Gray "$($header.Name): $($header.Value)";
-	}
-}
-
-####################################################
-
-function MakeGetRequest($collectionPath){
-
-	$uri = "$baseUrl$collectionPath";
-	$request = "GET $uri";
+    $uri = "$baseUrl$collectionPath";
+    $request = "GET $uri";
 	
-	if ($logRequestUris) { Write-Host $request; }
-	if ($logHeaders) { WriteHeaders $authToken; }
+    if ($logRequestUris) { Write-Host "`n$request"; Write-Host $params; }
+    if ($logHeaders) { WriteHeaders $authToken; }
 
-	try
-	{
-		$response = Invoke-RestMethod $uri -Method Get -Headers $authToken;
-		$response;
-	}
-	catch
-	{
-		Write-Host -ForegroundColor Red $request;
-		Write-Host -ForegroundColor Red $_.Exception.Message;
-		throw;
-	}
+    try {
+        $response = Invoke-RestMethod $uri -Method Get -Headers $authToken -Body $params;
+        Write-Host "`nRESPONSE: ";
+        Write-Host $response;
+        $response;
+    }
+    catch {
+        Write-Host -ForegroundColor Red $request;
+        Write-Host -ForegroundColor Red $_.Exception.Message;
+        throw;
+    }
 }
 
 ####################################################
 
-function MakePatchRequest($collectionPath, $body){
+function MakePatchRequest($collectionPath, $body) {
 
-	MakeRequest "PATCH" $collectionPath $body;
-
-}
-
-####################################################
-
-function MakePostRequest($collectionPath, $body){
-
-	MakeRequest "POST" $collectionPath $body;
+    MakeRequest "PATCH" $collectionPath $body;
 
 }
 
 ####################################################
 
-function MakeRequest($verb, $collectionPath, $body){
+function MakePostRequest($collectionPath, $body) {
 
-	$uri = "$baseUrl$collectionPath";
-	$request = "$verb $uri";
-	$clonedHeaders = CloneObject $authToken;
-#	$clonedHeaders["content-length"] = $body.Length;
-	$clonedHeaders["content-type"] = "application/json";
-
-	if ($logRequestUris) { Write-Host $request; }
-	if ($logHeaders) { WriteHeaders $clonedHeaders; }
-	if ($logContent) { Write-Host -ForegroundColor Gray $body; }
-
-	try
-	{
-		$response = Invoke-RestMethod $uri -Method $verb -Headers $clonedHeaders -Body $body;
-		$response;
-	}
-	catch
-	{
-		Write-Host -ForegroundColor Red $request;
-		Write-Host -ForegroundColor Red $_.Exception.Message;
-		throw;
-	}
-}
-
-####################################################
-
-function UploadAzureStorageChunk($sasUri, $id, $body){
-
-	$uri = "$sasUri&comp=block&blockid=$id";
-	$request = "PUT $uri";
-
-	$iso = [System.Text.Encoding]::GetEncoding("iso-8859-1");
-	$encodedBody = $iso.GetString($body);
-	$headers = @{
-		"x-ms-blob-type" = "BlockBlob"
-	};
-
-	if ($logRequestUris) { Write-Host $request; }
-	if ($logHeaders) { WriteHeaders $headers; }
-
-	try
-	{
-		$response = Invoke-WebRequest $uri -Method Put -Headers $headers -Body $encodedBody;
-	}
-	catch
-	{
-		Write-Host -ForegroundColor Red $request;
-		Write-Host -ForegroundColor Red $_.Exception.Message;
-		throw;
-	}
+    MakeRequest "POST" $collectionPath $body;
 
 }
 
 ####################################################
 
-function FinalizeAzureStorageUpload($sasUri, $ids){
+function MakeRequest($verb, $collectionPath, $body) {
 
-	$uri = "$sasUri&comp=blocklist";
-	$request = "PUT $uri";
+    $uri = "$baseUrl$collectionPath";
+    $request = "$verb $uri";
+    $postPatchHeaders = @{
+        'Authorization' = $authToken["Authorization"];
+        'content-type'  = "application/json";
+    }
 
-	$xml = '<?xml version="1.0" encoding="utf-8"?><BlockList>';
-	foreach ($id in $ids)
-	{
-		$xml += "<Latest>$id</Latest>";
-	}
-	$xml += '</BlockList>';
 
-	if ($logRequestUris) { Write-Host $request; }
-	if ($logContent) { Write-Host -ForegroundColor Gray $xml; }
+    if ($logRequestUris) { Write-Host "`n$request"; }
+    if ($logHeaders) { WriteHeaders $postPatchHeaders; }
+    if ($logContent) { Write-Host -ForegroundColor Gray "`n$body"; }
 
-	try
-	{
-		Invoke-RestMethod $uri -Method Put -Body $xml;
-	}
-	catch
-	{
-		Write-Host -ForegroundColor Red $request;
-		Write-Host -ForegroundColor Red $_.Exception.Message;
-		throw;
-	}
+    try {
+        $response = Invoke-RestMethod $uri -Method $verb -Headers $postPatchHeaders -Body $body;
+        Write-Host "`nRESPONSE: ";
+        Write-Host $response;
+        $response;
+    }
+    catch {
+        Write-Host -ForegroundColor Red $request;
+        Write-Host -ForegroundColor Red $_.Exception.Message;
+        throw;
+    }
 }
 
 ####################################################
 
-function UploadFileToAzureStorage($sasUri, $filepath){
+function UploadAzureStorageChunk($sasUri, $id, $body) {
 
-	# Chunk size = 1 MiB
+    $uri = "$sasUri&comp=block&blockid=$id";
+    $request = "PUT $uri";
+
+    $iso = [System.Text.Encoding]::GetEncoding("iso-8859-1");
+    $encodedBody = $iso.GetString($body);
+    $headers = @{
+        "x-ms-blob-type" = "BlockBlob"
+        "Content-Type"   = "text/plain; charset=iso-8859-1"
+    };
+
+    if ($logRequestUris) { Write-Host $request; }
+    if ($logHeaders) { WriteHeaders $headers; }
+
+    try {
+        $response = Invoke-WebRequest $uri -Method Put -Headers $headers -Body $encodedBody;
+    }
+    catch {
+        Write-Host -ForegroundColor Red $request;
+        Write-Host -ForegroundColor Red $_.Exception.Message;
+        throw;
+    }
+
+}
+
+####################################################
+
+function FinalizeAzureStorageUpload($sasUri, $ids) {
+
+    $uri = "$sasUri&comp=blocklist";
+    $request = "PUT $uri";
+
+    $xml = '<?xml version="1.0" encoding="utf-8"?><BlockList>';
+    foreach ($id in $ids) {
+        $xml += "<Latest>$id</Latest>";
+    }
+    $xml += '</BlockList>';
+
+    if ($logRequestUris) { Write-Host $request; }
+    if ($logContent) { Write-Host -ForegroundColor Gray $xml; }
+
+    try {
+        $headers = @{
+            "Content-Type" = "application/json"
+        };
+        Invoke-RestMethod $uri -Method Put -Body $xml -Headers $headers;
+    }
+    catch {
+        Write-Host -ForegroundColor Red $request;
+        Write-Host -ForegroundColor Red $_.Exception.Message;
+        throw;
+    }
+}
+
+####################################################
+
+function UploadFileToAzureStorage($sasUri, $filepath) {
+
+    # Chunk size = 1 MiB
     $chunkSizeInBytes = 1024 * 1024;
 
-	# Read the whole file and find the total chunks.
-	#[byte[]]$bytes = Get-Content $filepath -Encoding byte;
+    # Read the whole file and find the total chunks.
+    #[byte[]]$bytes = Get-Content $filepath -Encoding byte;
     # Using ReadAllBytes method as the Get-Content used alot of memory on the machine
     [byte[]]$bytes = [System.IO.File]::ReadAllBytes($filepath);
-	$chunks = [Math]::Ceiling($bytes.Length / $chunkSizeInBytes);
+    $chunks = [Math]::Ceiling($bytes.Length / $chunkSizeInBytes);
 
-	# Upload each chunk.
-	$ids = @();
+    # Upload each chunk.
+    $ids = @();
     $cc = 1
 
-	for ($chunk = 0; $chunk -lt $chunks; $chunk++)
-	{
+    for ($chunk = 0; $chunk -lt $chunks; $chunk++) {
         $id = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($chunk.ToString("0000")));
-		$ids += $id;
+        $ids += $id;
 
-		$start = $chunk * $chunkSizeInBytes;
-		$end = [Math]::Min($start + $chunkSizeInBytes - 1, $bytes.Length - 1);
-		$body = $bytes[$start..$end];
+        $start = $chunk * $chunkSizeInBytes;
+        $end = [Math]::Min($start + $chunkSizeInBytes - 1, $bytes.Length - 1);
+        $body = $bytes[$start..$end];
 
         Write-Progress -Activity "Uploading File to Azure Storage" -status "Uploading chunk $cc of $chunks" `
-        -percentComplete ($cc / $chunks*100)
+            -percentComplete ($cc / $chunks * 100)
         $cc++
 
         $uploadResponse = UploadAzureStorageChunk $sasUri $id $body;
-
-
-	}
+    }
 
     Write-Progress -Completed -Activity "Uploading File to Azure Storage"
 
-    Write-Host
-
-	# Finalize the upload.
-	$uploadResponse = FinalizeAzureStorageUpload $sasUri $ids;
+    # Finalize the upload.
+    $uploadResponse = FinalizeAzureStorageUpload $sasUri $ids;
 }
 
 ####################################################
 
-function GenerateKey{
+function GenerateKey {
 
-	try
-	{
-		$aes = [System.Security.Cryptography.Aes]::Create();
+    try {
+        $aes = [System.Security.Cryptography.Aes]::Create();
         $aesProvider = New-Object System.Security.Cryptography.AesCryptoServiceProvider;
         $aesProvider.GenerateKey();
         $aesProvider.Key;
-	}
-	finally
-	{
-		if ($aesProvider -ne $null) { $aesProvider.Dispose(); }
-		if ($aes -ne $null) { $aes.Dispose(); }
-	}
-}
-
-####################################################
-
-function GenerateIV{
-
-	try
-	{
-		$aes = [System.Security.Cryptography.Aes]::Create();
-        $aes.IV;
-	}
-	finally
-	{
-		if ($aes -ne $null) { $aes.Dispose(); }
-	}
-}
-
-####################################################
-
-function EncryptFileWithIV($sourceFile, $targetFile, $encryptionKey, $hmacKey, $initializationVector){
-
-	$bufferBlockSize = 1024 * 4;
-	$computedMac = $null;
-
-	try
-	{
-		$aes = [System.Security.Cryptography.Aes]::Create();
-		$hmacSha256 = New-Object System.Security.Cryptography.HMACSHA256;
-		$hmacSha256.Key = $hmacKey;
-		$hmacLength = $hmacSha256.HashSize / 8;
-
-		$buffer = New-Object byte[] $bufferBlockSize;
-		$bytesRead = 0;
-
-		$targetStream = [System.IO.File]::Open($targetFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::Read);
-		$targetStream.Write($buffer, 0, $hmacLength + $initializationVector.Length);
-
-		try
-		{
-			$encryptor = $aes.CreateEncryptor($encryptionKey, $initializationVector);
-			$sourceStream = [System.IO.File]::Open($sourceFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read);
-			$cryptoStream = New-Object System.Security.Cryptography.CryptoStream -ArgumentList @($targetStream, $encryptor, [System.Security.Cryptography.CryptoStreamMode]::Write);
-
-			$targetStream = $null;
-			while (($bytesRead = $sourceStream.Read($buffer, 0, $bufferBlockSize)) -gt 0)
-			{
-				$cryptoStream.Write($buffer, 0, $bytesRead);
-				$cryptoStream.Flush();
-			}
-			$cryptoStream.FlushFinalBlock();
-		}
-		finally
-		{
-			if ($cryptoStream -ne $null) { $cryptoStream.Dispose(); }
-			if ($sourceStream -ne $null) { $sourceStream.Dispose(); }
-			if ($encryptor -ne $null) { $encryptor.Dispose(); }	
-		}
-
-		try
-		{
-			$finalStream = [System.IO.File]::Open($targetFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::Read)
-
-			$finalStream.Seek($hmacLength, [System.IO.SeekOrigin]::Begin) > $null;
-			$finalStream.Write($initializationVector, 0, $initializationVector.Length);
-			$finalStream.Seek($hmacLength, [System.IO.SeekOrigin]::Begin) > $null;
-
-			$hmac = $hmacSha256.ComputeHash($finalStream);
-			$computedMac = $hmac;
-
-			$finalStream.Seek(0, [System.IO.SeekOrigin]::Begin) > $null;
-			$finalStream.Write($hmac, 0, $hmac.Length);
-		}
-		finally
-		{
-			if ($finalStream -ne $null) { $finalStream.Dispose(); }
-		}
-	}
-	finally
-	{
-		if ($targetStream -ne $null) { $targetStream.Dispose(); }
+    }
+    finally {
+        if ($aesProvider -ne $null) { $aesProvider.Dispose(); }
         if ($aes -ne $null) { $aes.Dispose(); }
-	}
-
-	$computedMac;
+    }
 }
 
 ####################################################
 
-function EncryptFile($sourceFile, $targetFile){
+function GenerateIV {
 
-	$encryptionKey = GenerateKey;
-	$hmacKey = GenerateKey;
-	$initializationVector = GenerateIV;
+    try {
+        $aes = [System.Security.Cryptography.Aes]::Create();
+        $aes.IV;
+    }
+    finally {
+        if ($aes -ne $null) { $aes.Dispose(); }
+    }
+}
 
-	# Create the encrypted target file and compute the HMAC value.
-	$mac = EncryptFileWithIV $sourceFile $targetFile $encryptionKey $hmacKey $initializationVector;
+####################################################
 
-	# Compute the SHA256 hash of the source file and convert the result to bytes.
-	$fileDigest = (Get-FileHash $sourceFile -Algorithm SHA256).Hash;
-	$fileDigestBytes = New-Object byte[] ($fileDigest.Length / 2);
-    for ($i = 0; $i -lt $fileDigest.Length; $i += 2)
-	{
+function EncryptFileWithIV($sourceFile, $targetFile, $encryptionKey, $hmacKey, $initializationVector) {
+
+    $bufferBlockSize = 1024 * 4;
+    $computedMac = $null;
+
+    try {
+        $aes = [System.Security.Cryptography.Aes]::Create();
+        $hmacSha256 = New-Object System.Security.Cryptography.HMACSHA256;
+        $hmacSha256.Key = $hmacKey;
+        $hmacLength = $hmacSha256.HashSize / 8;
+
+        $buffer = New-Object byte[] $bufferBlockSize;
+        $bytesRead = 0;
+
+        $targetStream = [System.IO.File]::Open($targetFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::Read);
+        $targetStream.Write($buffer, 0, $hmacLength + $initializationVector.Length);
+
+        try {
+            $encryptor = $aes.CreateEncryptor($encryptionKey, $initializationVector);
+            $sourceStream = [System.IO.File]::Open($sourceFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read);
+            $cryptoStream = New-Object System.Security.Cryptography.CryptoStream -ArgumentList @($targetStream, $encryptor, [System.Security.Cryptography.CryptoStreamMode]::Write);
+
+            $targetStream = $null;
+            while (($bytesRead = $sourceStream.Read($buffer, 0, $bufferBlockSize)) -gt 0) {
+                $cryptoStream.Write($buffer, 0, $bytesRead);
+                $cryptoStream.Flush();
+            }
+            $cryptoStream.FlushFinalBlock();
+        }
+        finally {
+            if ($cryptoStream -ne $null) { $cryptoStream.Dispose(); }
+            if ($sourceStream -ne $null) { $sourceStream.Dispose(); }
+            if ($encryptor -ne $null) { $encryptor.Dispose(); }	
+        }
+
+        try {
+            $finalStream = [System.IO.File]::Open($targetFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::Read)
+
+            $finalStream.Seek($hmacLength, [System.IO.SeekOrigin]::Begin) > $null;
+            $finalStream.Write($initializationVector, 0, $initializationVector.Length);
+            $finalStream.Seek($hmacLength, [System.IO.SeekOrigin]::Begin) > $null;
+
+            $hmac = $hmacSha256.ComputeHash($finalStream);
+            $computedMac = $hmac;
+
+            $finalStream.Seek(0, [System.IO.SeekOrigin]::Begin) > $null;
+            $finalStream.Write($hmac, 0, $hmac.Length);
+        }
+        finally {
+            if ($finalStream -ne $null) { $finalStream.Dispose(); }
+        }
+    }
+    finally {
+        if ($targetStream -ne $null) { $targetStream.Dispose(); }
+        if ($aes -ne $null) { $aes.Dispose(); }
+    }
+
+    $computedMac;
+}
+
+####################################################
+
+function EncryptFile($sourceFile, $targetFile) {
+
+    $encryptionKey = GenerateKey;
+    $hmacKey = GenerateKey;
+    $initializationVector = GenerateIV;
+
+    # Create the encrypted target file and compute the HMAC value.
+    $mac = EncryptFileWithIV $sourceFile $targetFile $encryptionKey $hmacKey $initializationVector;
+
+    # Compute the SHA256 hash of the source file and convert the result to bytes.
+    $fileDigest = (Get-FileHash $sourceFile -Algorithm SHA256).Hash;
+    $fileDigestBytes = New-Object byte[] ($fileDigest.Length / 2);
+    for ($i = 0; $i -lt $fileDigest.Length; $i += 2) {
         $fileDigestBytes[$i / 2] = [System.Convert]::ToByte($fileDigest.Substring($i, 2), 16);
     }
 	
-	# Return an object that will serialize correctly to the file commit Graph API.
-	$encryptionInfo = @{};
-	$encryptionInfo.encryptionKey = [System.Convert]::ToBase64String($encryptionKey);
-	$encryptionInfo.macKey = [System.Convert]::ToBase64String($hmacKey);
-	$encryptionInfo.initializationVector = [System.Convert]::ToBase64String($initializationVector);
-	$encryptionInfo.mac = [System.Convert]::ToBase64String($mac);
-	$encryptionInfo.profileIdentifier = "ProfileVersion1";
-	$encryptionInfo.fileDigest = [System.Convert]::ToBase64String($fileDigestBytes);
-	$encryptionInfo.fileDigestAlgorithm = "SHA256";
+    # Return an object that will serialize correctly to the file commit Graph API.
+    $encryptionInfo = @{};
+    $encryptionInfo.encryptionKey = [System.Convert]::ToBase64String($encryptionKey);
+    $encryptionInfo.macKey = [System.Convert]::ToBase64String($hmacKey);
+    $encryptionInfo.initializationVector = [System.Convert]::ToBase64String($initializationVector);
+    $encryptionInfo.mac = [System.Convert]::ToBase64String($mac);
+    $encryptionInfo.profileIdentifier = "ProfileVersion1";
+    $encryptionInfo.fileDigest = [System.Convert]::ToBase64String($fileDigestBytes);
+    $encryptionInfo.fileDigestAlgorithm = "SHA256";
 
-	$fileEncryptionInfo = @{};
-	$fileEncryptionInfo.fileEncryptionInfo = $encryptionInfo;
+    $fileEncryptionInfo = @{};
+    $fileEncryptionInfo.fileEncryptionInfo = $encryptionInfo;
 
-	$fileEncryptionInfo;
-
-}
-
-####################################################
-
-function WaitForFileProcessing($fileUri, $stage){
-
-	$attempts= 60;
-	$waitTimeInSeconds = 1;
-
-	$successState = "$($stage)Success";
-	$pendingState = "$($stage)Pending";
-	$failedState = "$($stage)Failed";
-	$timedOutState = "$($stage)TimedOut";
-
-	$file = $null;
-	while ($attempts -gt 0)
-	{
-		$file = MakeGetRequest $fileUri;
-
-		if ($file.uploadState -eq $successState)
-		{
-			break;
-		}
-		elseif ($file.uploadState -ne $pendingState)
-		{
-			throw "File upload state is not success: $($file.uploadState)";
-		}
-
-		Start-Sleep $waitTimeInSeconds;
-		$attempts--;
-	}
-
-	if ($file -eq $null)
-	{
-		throw "File request did not complete in the allotted time.";
-	}
-
-	$file;
+    $fileEncryptionInfo;
 
 }
 
 ####################################################
 
-function GetAndroidAppBody($displayName, $publisher, $description, $filename, $identityName, $identityVersion, $versionName, $minimumSupportedOperatingSystem){
+function WaitForFileProcessing($fileUri, $stage) {
 
-	$body = @{ "@odata.type" = "#microsoft.graph.androidLOBApp" };
-	$body.categories = @();
-	$body.displayName = $displayName;
-	$body.publisher = $publisher;
-	$body.description = $description;
-	$body.fileName = $filename;
-	$body.identityName = $identityName;
-	$body.identityVersion = $identityVersion;
+    $attempts = 60;
+    $waitTimeInSeconds = 1;
+
+    $successState = "$($stage)Success";
+    $pendingState = "$($stage)Pending";
+    $failedState = "$($stage)Failed";
+    $timedOutState = "$($stage)TimedOut";
+
+    $file = $null;
+    while ($attempts -gt 0) {
+        $file = MakeGetRequest $fileUri;
+
+        if ($file.uploadState -eq $successState) {
+            break;
+        }
+        elseif ($file.uploadState -ne $pendingState) {
+            throw "File upload state is not success: $($file.uploadState)";
+        }
+
+        Start-Sleep $waitTimeInSeconds;
+        $attempts--;
+    }
+
+    if ($file -eq $null) {
+        throw "File request did not complete in the allotted time.";
+    }
+    Write-Host "`nFILE PROCESSING RESPONSE: ";
+    Write-Host $file;
+    $file;
+
+}
+
+####################################################
+
+function GetAndroidAppBody($displayName, $publisher, $description, $filename, $identityName, $identityVersion, $versionName, $minimumSupportedOperatingSystem) {
+
+    $body = @{ "@odata.type" = "#microsoft.graph.androidLOBApp" };
+    $body.categories = @();
+    $body.displayName = $displayName;
+    $body.publisher = $publisher;
+    $body.description = $description;
+    $body.fileName = $filename;
+    $body.identityName = $identityName;
+    $body.identityVersion = $identityVersion;
 	
-    if ($minimumSupportedOperatingSystem -eq $null){
+    if ($minimumSupportedOperatingSystem -eq $null) {
 
-		$body.minimumSupportedOperatingSystem = @{ "v4_4" = $true };
+        $body.minimumSupportedOperatingSystem = @{ "v4_4" = $true };
 	
     }
 	
     else {
 
-		$body.minimumSupportedOperatingSystem = $minimumSupportedOperatingSystem;
+        $body.minimumSupportedOperatingSystem = $minimumSupportedOperatingSystem;
 	
     }
 
-	$body.informationUrl = $null;
-	$body.isFeatured = $false;
-	$body.privacyInformationUrl = $null;
-	$body.developer = "";
-	$body.notes = "";
-	$body.owner = "";
+    $body.informationUrl = $null;
+    $body.isFeatured = $false;
+    $body.privacyInformationUrl = $null;
+    $body.developer = "";
+    $body.notes = "";
+    $body.owner = "";
     $body.versionCode = $identityVersion;
     $body.versionName = $versionName;
 
-	$body;
+    $body;
 }
 
 ####################################################
 
-function GetiOSAppBody($displayName, $publisher, $description, $filename, $bundleId, $identityVersion, $versionNumber, $expirationDateTime){
+function GetiOSAppBody($displayName, $publisher, $description, $filename, $bundleId, $identityVersion, $versionNumber, $expirationDateTime) {
 
-	$body = @{ "@odata.type" = "#microsoft.graph.iosLOBApp" };
-    $body.applicableDeviceType = @{ "iPad" = $true; "iPhoneAndIPod" = $true }
-	$body.categories = @();
-	$body.displayName = $displayName;
-	$body.publisher = $publisher;
-	$body.description = $description;
-	$body.fileName = $filename;
-	$body.bundleId = $bundleId;
-	$body.buildNumber = $versionNumber;
-	$body.versionNumber = $versionNumber;
-	$body.identityVersion = $identityVersion;
-	if ($minimumSupportedOperatingSystem -eq $null)
-	{
-		$body.minimumSupportedOperatingSystem = @{ "v9_0" = $true };
-	}
-	else
-	{
-		$body.minimumSupportedOperatingSystem = $minimumSupportedOperatingSystem;
-	}
+    $body = @{ "@odata.type" = "#microsoft.graph.iosLOBApp" };
+    $body.applicableDeviceType = @{ "iPad" = $true; "iPhoneAndIPod" = $false } # We only support iPad
+    # $body.categories = @();
+    $body.displayName = $displayName;
+    $body.publisher = $publisher;
+    $body.description = $description;
+    $body.fileName = $filename;
+    $body.bundleId = $bundleId;
+    $body.buildNumber = $versionNumber;
+    $body.versionNumber = $versionNumber;
+    $body.identityVersion = $identityVersion;
+    if ($minimumSupportedOperatingSystem -eq $null) {
+        # This is in parity w/ our existing production app, see if we can pull this from our app config
+        $body.minimumSupportedOperatingSystem = @{ "v10_0" = $true }; 
+    }
+    else {
+        $body.minimumSupportedOperatingSystem = $minimumSupportedOperatingSystem;
+    }
 
-	$body.informationUrl = $null;
-	$body.isFeatured = $false;
-	$body.privacyInformationUrl = $null;
-	$body.developer = "";
-	$body.notes = "";
-	$body.owner = "";
+    $body.informationUrl = $null;
+    $body.isFeatured = $false;
+    $body.privacyInformationUrl = $null;
+    $body.developer = "";
+    $body.notes = "";
+    $body.owner = "";
     $body.expirationDateTime = $expirationDateTime;
     $body.versionNumber = $versionNumber;
 
-	$body;
+    $body;
 }
 
 ####################################################
 
-function GetMSIAppBody($displayName, $publisher, $description, $filename, $identityVersion, $ProductCode){
+function GetMSIAppBody($displayName, $publisher, $description, $filename, $identityVersion, $ProductCode) {
 
-	$body = @{ "@odata.type" = "#microsoft.graph.windowsMobileMSI" };
-	$body.displayName = $displayName;
-	$body.publisher = $publisher;
-	$body.description = $description;
-	$body.fileName = $filename;
-	$body.identityVersion = $identityVersion;
-	$body.informationUrl = $null;
-	$body.isFeatured = $false;
-	$body.privacyInformationUrl = $null;
-	$body.developer = ""; 
-	$body.notes = "";
-	$body.owner = "";
+    $body = @{ "@odata.type" = "#microsoft.graph.windowsMobileMSI" };
+    $body.displayName = $displayName;
+    $body.publisher = $publisher;
+    $body.description = $description;
+    $body.fileName = $filename;
+    $body.identityVersion = $identityVersion;
+    $body.informationUrl = $null;
+    $body.isFeatured = $false;
+    $body.privacyInformationUrl = $null;
+    $body.developer = ""; 
+    $body.notes = "";
+    $body.owner = "";
     $body.productCode = "$ProductCode";
     $body.productVersion = "$identityVersion";
 
-	$body;
+    $body;
 }
 
 ####################################################
 
-function GetAppFileBody($name, $size, $sizeEncrypted, $manifest){
+function GetAppFileBody($name, $size, $sizeEncrypted, $manifest) {
 
-	$body = @{ "@odata.type" = "#microsoft.graph.mobileAppContentFile" };
-	$body.name = $name;
-	$body.size = $size;
-	$body.sizeEncrypted = $sizeEncrypted;
-	$body.manifest = $manifest;
+    $body = @{ "@odata.type" = "#microsoft.graph.mobileAppContentFile" };
+    $body.name = $name;
+    $body.size = $size;
+    $body.sizeEncrypted = $sizeEncrypted;
+    $body.manifest = $manifest;
 
-	$body;
+    $body;
 }
 
 ####################################################
 
-function GetAppCommitBody($contentVersionId, $LobType){
+function GetAppCommitBody($contentVersionId, $LobType) {
 
-	$body = @{ "@odata.type" = "#$LobType" };
-	$body.committedContentVersion = $contentVersionId;
+    $body = @{ "@odata.type" = "#$LobType" };
+    $body.committedContentVersion = $contentVersionId;
 
-	$body;
-
+    $body;
 }
 
 ####################################################
 
-Function Test-SourceFile(){
+Function Test-SourceFile() {
 
-param
-(
-    [parameter(Mandatory=$true)]
-    [ValidateNotNullOrEmpty()]
-    $SourceFile
-)
+    param
+    (
+        [parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        $SourceFile
+    )
 
     try {
 
-            if(!(test-path "$SourceFile")){
+        if (!(test-path "$SourceFile")) {
 
             Write-Host "Source File '$sourceFile' doesn't exist..." -ForegroundColor Red
             throw
 
-            }
-
         }
-
-    catch {
-
-		Write-Host -ForegroundColor Red $_.Exception.Message;
-        Write-Host
-		throw;
 
     }
 
+    catch {
+
+        Write-Host -ForegroundColor Red $_.Exception.Message;
+        Write-Host
+        throw;
+
+    }
+
+}
+
+####################################################
+
+Function GetCurrentApp($displayName, $collectionPath) {
+    # make a call to get apps matching the display name
+    $params = @{
+        '$filter' = "isof('microsoft.graph.iosLOBApp') and displayName eq '$displayName'";
+        '$expand' = "categories";
+    }
+    MakeGetRequest $collectionPath $params;
+}
+
+####################################################
+
+Function ShouldUpdate($appResponse, $versionNumber) {
+    Write-Host "Upload version: " + $versionNumber;
+    Write-Host "Prior version: " + $appResponse.value[0].id;
+    if (($appResponse.value.Length -gt 0) -and (-not [string]::IsNullOrEmpty($appResponse.value[0].id))) {
+        return $true;
+    }
+    return $false;
 }
 
 ####################################################
 
 Function Get-ApkInformation {
 
-<#
+    <#
 .SYNOPSIS
 This function is used to get information about an Android APK file using the Android SDK - https://developer.android.com/studio/index.html
 .DESCRIPTION
@@ -542,67 +531,67 @@ Function will return two object, object[0] is the identityName and object[1] is 
 NAME: Get-ApkInformation
 #>
 
-[cmdletbinding()]
+    [cmdletbinding()]
 
-param
-(
-    [Parameter(Mandatory=$true)]
-    $sourceFile,
-    [Parameter(Mandatory=$true)]
-    $AndroidSDK
-)
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        $sourceFile,
+        [Parameter(Mandatory = $true)]
+        $AndroidSDK
+    )
 
-    if(!(test-path $AndroidSDK)){
+    if (!(test-path $AndroidSDK)) {
 
-    Write-Host
-    Write-Host "Android SDK isn't installed..." -ForegroundColor Red
-    Write-Host "Please install Android Studio and install the SDK from https://developer.android.com/studio/index.html"
-    Write-Host
-    break
+        Write-Host
+        Write-Host "Android SDK isn't installed..." -ForegroundColor Red
+        Write-Host "Please install Android Studio and install the SDK from https://developer.android.com/studio/index.html"
+        Write-Host
+        break
 
     }
 
-    if(((gci $AndroidSDK | select name).Name).count -gt 1){
+    if (((gci $AndroidSDK | select name).Name).count -gt 1) {
 
-    $BuildTools = ((gci $AndroidSDK | select name).Name | sort -Descending)[0]
+        $BuildTools = ((gci $AndroidSDK | select name).Name | sort -Descending)[0]
 
     }
 
     else {
 
-    $BuildTools = ((gci $AndroidSDK | select name).Name)
+        $BuildTools = ((gci $AndroidSDK | select name).Name)
 
     }
 
-$aaptPath = "$AndroidSDK\$BuildTools"
+    $aaptPath = "$AndroidSDK\$BuildTools"
 
-[ScriptBlock]$command = {
+    [ScriptBlock]$command = {
 
-    cmd.exe /c "$aaptPath\aapt.exe" dump badging "$sourceFile"
+        cmd.exe /c "$aaptPath\aapt.exe" dump badging "$sourceFile"
 
-}
+    }
 
-$aaptRun = Invoke-Command -ScriptBlock $command
+    $aaptRun = Invoke-Command -ScriptBlock $command
 
-$AndroidPackage = $aaptRun | ? { ($_).startswith("package") }
+    $AndroidPackage = $aaptRun | ? { ($_).startswith("package") }
 
-$PackageInfo = $AndroidPackage.split(" ")
+    $PackageInfo = $AndroidPackage.split(" ")
 
-$PackageInfo[1].Split("'")[1]
-$PackageInfo[2].Split("'")[1]
-$PackageInfo[3].Split("'")[1]
+    $PackageInfo[1].Split("'")[1]
+    $PackageInfo[2].Split("'")[1]
+    $PackageInfo[3].Split("'")[1]
 
-if ($logContent) { Write-Host -ForegroundColor Gray $PackageInfo[1].Split("'")[1]; }
-if ($logContent) { Write-Host -ForegroundColor Gray $PackageInfo[2].Split("'")[1]; }
-if ($logContent) { Write-Host -ForegroundColor Gray $PackageInfo[3].Split("'")[1]; }
+    if ($logContent) { Write-Host -ForegroundColor Gray $PackageInfo[1].Split("'")[1]; }
+    if ($logContent) { Write-Host -ForegroundColor Gray $PackageInfo[2].Split("'")[1]; }
+    if ($logContent) { Write-Host -ForegroundColor Gray $PackageInfo[3].Split("'")[1]; }
 
 }
 
 ####################################################
 
-function Upload-AndroidLob(){
+function Upload-AndroidLob() {
 
-<#
+    <#
 .SYNOPSIS
 This function is used to upload an Android LOB Application to the Intune Service
 .DESCRIPTION
@@ -616,45 +605,44 @@ This example uses the required parameters to add an Android Application into the
 NAME: Upload-AndroidLOB
 #>
 
-[cmdletbinding()]
+    [cmdletbinding()]
 
-param
-(
-    [parameter(Mandatory=$true,Position=1)]
-    [ValidateNotNullOrEmpty()]
-    [string]$SourceFile,
+    param
+    (
+        [parameter(Mandatory = $true, Position = 1)]
+        [ValidateNotNullOrEmpty()]
+        [string]$SourceFile,
 
-    [parameter(Mandatory=$false)]
-    [string]$displayName,
+        [parameter(Mandatory = $false)]
+        [string]$displayName,
 
-    [parameter(Mandatory=$true,Position=2)]
-    [ValidateNotNullOrEmpty()]
-    [string]$publisher,
+        [parameter(Mandatory = $true, Position = 2)]
+        [ValidateNotNullOrEmpty()]
+        [string]$publisher,
 
-    [parameter(Mandatory=$true,Position=3)]
-    [ValidateNotNullOrEmpty()]
-    [string]$description,
+        [parameter(Mandatory = $true, Position = 3)]
+        [ValidateNotNullOrEmpty()]
+        [string]$description,
 
-    [parameter(Mandatory=$false)]
-    [string]$identityName,
+        [parameter(Mandatory = $false)]
+        [string]$identityName,
 
-    [parameter(Mandatory=$false)]
-    [string]$identityVersion,
+        [parameter(Mandatory = $false)]
+        [string]$identityVersion,
 
-    [parameter(Mandatory=$false)]
-    [string]$versionName
+        [parameter(Mandatory = $false)]
+        [string]$versionName
 
-)
+    )
 
-	try
-	{
+    try {
 		
         $LOBType = "microsoft.graph.androidLOBApp"
 
         Write-Host "Testing if SourceFile '$SourceFile' Path is valid..." -ForegroundColor Yellow
         Test-SourceFile "$SourceFile"
 
-            if(!$identityName){
+        if (!$identityName) {
 
             Write-Host
             Write-Host "Opening APK file to get identityName to pass to the service..." -ForegroundColor Yellow
@@ -663,9 +651,9 @@ param
 
             $identityName = $APKInformation[0]
 
-            }
+        }
 
-            if(!$identityVersion){
+        if (!$identityVersion) {
 
             Write-Host
             Write-Host "Opening APK file to get identityVersion to pass to the service..." -ForegroundColor Yellow
@@ -674,9 +662,9 @@ param
 
             $identityVersion = $APKInformation[1]
 
-            }
+        }
 
-            if(!$versionName){
+        if (!$versionName) {
 
             Write-Host
             Write-Host "Opening APK file to get versionName to pass to the service..." -ForegroundColor Yellow
@@ -685,7 +673,7 @@ param
 
             $versionName = $APKInformation[2]
 
-            }
+        }
 
 
         # Creating temp file name from Source File path
@@ -694,28 +682,28 @@ param
         # Creating filename variable from Source File Path
         $filename = [System.IO.Path]::GetFileName("$SourceFile")
 
-            if(!($displayName)){
+        if (!($displayName)) {
 
             $displayName = $filename
 
-            }
+        }
 
         # Create a new Android LOB app.
         Write-Host
         Write-Host "Creating JSON data to pass to the service..." -ForegroundColor Yellow
-		$mobileAppBody = GetAndroidAppBody "$displayName" "$Publisher" "$Description" "$filename" "$identityName" "$identityVersion" "$versionName";
+        $mobileAppBody = GetAndroidAppBody "$displayName" "$Publisher" "$Description" "$filename" "$identityName" "$identityVersion" "$versionName";
 		
         Write-Host
         Write-Host "Creating application in Intune..." -ForegroundColor Yellow
         $mobileApp = MakePostRequest "mobileApps" ($mobileAppBody | ConvertTo-Json);
 
 
-		# Get the content version for the new app (this will always be 1 until the new app is committed).
+        # Get the content version for the new app (this will always be 1 until the new app is committed).
         Write-Host
         Write-Host "Creating Content Version in the service for the application..." -ForegroundColor Yellow
-		$appId = $mobileApp.id;
-		$contentVersionUri = "mobileApps/$appId/$LOBType/contentVersions";
-		$contentVersion = MakePostRequest $contentVersionUri "{}";
+        $appId = $mobileApp.id;
+        $contentVersionUri = "mobileApps/$appId/$LOBType/contentVersions";
+        $contentVersion = MakePostRequest $contentVersionUri "{}";
 
         # Encrypt file and Get File Information
         Write-Host
@@ -737,47 +725,47 @@ param
         $manifestXML_Output = $manifestXML.OuterXml.ToString()
 
         $Bytes = [System.Text.Encoding]::ASCII.GetBytes($manifestXML_Output)
-        $EncodedText =[Convert]::ToBase64String($Bytes)
+        $EncodedText = [Convert]::ToBase64String($Bytes)
 `
-		# Create a new file for the app.
-        Write-Host
+            # Create a new file for the app.
+            Write-Host
         Write-Host "Creating a new file entry in Azure for the upload..." -ForegroundColor Yellow
-		$contentVersionId = $contentVersion.id;
-		$fileBody = GetAppFileBody "$filename" $Size $EncrySize "$EncodedText";
-		$filesUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files";
-		$file = MakePostRequest $filesUri ($fileBody | ConvertTo-Json);
+        $contentVersionId = $contentVersion.id;
+        $fileBody = GetAppFileBody "$filename" $Size $EncrySize "$EncodedText";
+        $filesUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files";
+        $file = MakePostRequest $filesUri ($fileBody | ConvertTo-Json);
 	
-		# Wait for the service to process the new file request.
+        # Wait for the service to process the new file request.
         Write-Host
         Write-Host "Waiting for the file entry URI to be created..." -ForegroundColor Yellow
-		$fileId = $file.id;
-		$fileUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files/$fileId";
-		$file = WaitForFileProcessing $fileUri "AzureStorageUriRequest";
+        $fileId = $file.id;
+        $fileUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files/$fileId";
+        $file = WaitForFileProcessing $fileUri "AzureStorageUriRequest";
 
         # Upload the content to Azure Storage.
         Write-Host
         Write-Host "Uploading file to Azure Storage URI..." -ForegroundColor Yellow
 		
         $sasUri = $file.azureStorageUri;
-		UploadFileToAzureStorage $file.azureStorageUri $tempFile;
+        UploadFileToAzureStorage $file.azureStorageUri $tempFile;
 
-		# Commit the file.
+        # Commit the file.
         Write-Host
         Write-Host "Committing the file into Azure Storage..." -ForegroundColor Yellow
-		$commitFileUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files/$fileId/commit";
-		MakePostRequest $commitFileUri ($encryptionInfo | ConvertTo-Json);
+        $commitFileUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files/$fileId/commit";
+        MakePostRequest $commitFileUri ($encryptionInfo | ConvertTo-Json);
 
-		# Wait for the service to process the commit file request.
+        # Wait for the service to process the commit file request.
         Write-Host
         Write-Host "Waiting for the service to process the commit file request..." -ForegroundColor Yellow
-		$file = WaitForFileProcessing $fileUri "CommitFile";
+        $file = WaitForFileProcessing $fileUri "CommitFile";
 
-		# Commit the app.
+        # Commit the app.
         Write-Host
         Write-Host "Committing the application to the Intune Service..." -ForegroundColor Yellow
-		$commitAppUri = "mobileApps/$appId";
-		$commitAppBody = GetAppCommitBody $contentVersionId $LOBType;
-		MakePatchRequest $commitAppUri ($commitAppBody | ConvertTo-Json);
+        $commitAppUri = "mobileApps/$appId";
+        $commitAppBody = GetAppCommitBody $contentVersionId $LOBType;
+        MakePatchRequest $commitAppUri ($commitAppBody | ConvertTo-Json);
 
         Write-Host "Removing Temporary file '$tempFile'..." -f Gray
         Remove-Item -Path "$tempFile" -Force
@@ -787,20 +775,19 @@ param
         Start-Sleep $sleep
         Write-Host
 
-	}
-	catch
-	{
-		Write-Host "";
-		Write-Host -ForegroundColor Red "Aborting with exception: $($_.Exception.ToString())";
-		throw;
-	}
+    }
+    catch {
+        Write-Host "";
+        Write-Host -ForegroundColor Red "Aborting with exception: $($_.Exception.ToString())";
+        throw;
+    }
 }
 
 ####################################################
 
-function Upload-iOSLob(){
+function Upload-iOSLob() {
 
-<#
+    <#
 .SYNOPSIS
 This function is used to upload an iOS LOB Application to the Intune Service
 .DESCRIPTION
@@ -812,45 +799,46 @@ This example uses all parameters required to add an iOS Application into the Int
 NAME: Upload-iOSLOB
 #>
 
-[cmdletbinding()]
+    [cmdletbinding()]
 
-param
-(
-    [parameter(Mandatory=$true,Position=1)]
-    [ValidateNotNullOrEmpty()]
-    [string]$SourceFile,
+    param
+    (
+        [parameter(Mandatory = $true, Position = 1)]
+        [ValidateNotNullOrEmpty()]
+        [string]$SourceFile,
 
-    [parameter(Mandatory=$true,Position=2)]
-    [ValidateNotNullOrEmpty()]
-    [string]$displayName,
+        [parameter(Mandatory = $true, Position = 2)]
+        [ValidateNotNullOrEmpty()]
+        [string]$displayName,
 
-    [parameter(Mandatory=$true,Position=3)]
-    [ValidateNotNullOrEmpty()]
-    [string]$publisher,
+        [parameter(Mandatory = $true, Position = 3)]
+        [ValidateNotNullOrEmpty()]
+        [string]$publisher,
 
-    [parameter(Mandatory=$true,Position=4)]
-    [ValidateNotNullOrEmpty()]
-    [string]$description,
+        [parameter(Mandatory = $true, Position = 4)]
+        [ValidateNotNullOrEmpty()]
+        [string]$description,
 
-    [parameter(Mandatory=$true,Position=5)]
-    [ValidateNotNullOrEmpty()]
-    [string]$bundleId,
+        [parameter(Mandatory = $true, Position = 5)]
+        [ValidateNotNullOrEmpty()]
+        [string]$bundleId,
 
-    [parameter(Mandatory=$true,Position=6)]
-    [ValidateNotNullOrEmpty()]
-    [string]$identityVersion,
+        [parameter(Mandatory = $true, Position = 6)]
+        [ValidateNotNullOrEmpty()]
+        [string]$identityVersion,
 
-    [parameter(Mandatory=$true,Position=7)]
-    [ValidateNotNullOrEmpty()]
-    [string]$versionNumber,
+        [parameter(Mandatory = $true, Position = 7)]
+        [ValidateNotNullOrEmpty()]
+        [string]$versionNumber,
 
-    [parameter(Mandatory=$true,Position=8)]
-    [ValidateNotNullOrEmpty()]
-    [string]$expirationDateTime
-)
+        [parameter(Mandatory = $true, Position = 8)]
+        [ValidateNotNullOrEmpty()]
+        [string]$expirationDateTime
+    )
 
-	try
-	{
+    try {
+
+        WriteHeaders $authToken;
 		
         $LOBType = "microsoft.graph.iosLOBApp"
 
@@ -862,12 +850,11 @@ param
 
         $Date = get-date
 
-            if($Expiration -lt $Date){
+        if ($Expiration -lt $Date) {
 
-                Write-Error "$SourceFile has expired Follow the guidelines provided by Apple to extend the expiration date, then try adding the app again"
-                throw
-
-            }
+            Write-Error "$SourceFile has expired Follow the guidelines provided by Apple to extend the expiration date, then try adding the app again"
+            throw
+        }
 
         # Creating temp file name from Source File path
         $tempFile = [System.IO.Path]::GetDirectoryName("$SourceFile") + "/" + [System.IO.Path]::GetFileNameWithoutExtension("$SourceFile") + "_temp.bin"
@@ -876,96 +863,105 @@ param
         $filename = [System.IO.Path]::GetFileName("$SourceFile")
 
         # Create a new iOS LOB app.
-        Write-Host
-        Write-Host "Creating JSON data to pass to the service..." -ForegroundColor Yellow
-		$mobileAppBody = GetiOSAppBody "$displayName" "$Publisher" "$Description" "$filename" "$bundleId" "$identityVersion" "$versionNumber" "$expirationDateTime";
+        Write-Host "`nCreating JSON data to pass to the service..." -ForegroundColor Yellow
+        $mobileAppBody = GetiOSAppBody "$displayName" "$Publisher" "$Description" "$filename" "$bundleId" "$identityVersion" "$versionNumber" "$expirationDateTime";
 
-        Write-Host
-        Write-Host "Creating application in Intune..." -ForegroundColor Yellow
+        # Check if the app already exists.
+        Write-Host "`nCheck if app exists" -ForegroundColor Yellow
+        $appResponse = GetCurrentApp $displayName "mobileApps/";
 
-		$mobileApp = MakePostRequest "mobileApps" ($mobileAppBody | ConvertTo-Json);
+        # Decide if post or patch
+        if (ShouldUpdate $appResponse $versionNumber) {
+            $id = $appResponse.value[0].id;
+            $mobileAppBody.id = $id;
+            $verb = "PATCH";
+            $appUri = "mobileApps/$id";
+        } else {
+            $verb = "POST";
+            # $mobileAppBody.categories = @();
+            $appUri = "mobileApps/"
+        }
+        Write-Host $verb $appUri;
 
-		# Get the content version for the new app (this will always be 1 until the new app is committed).
-        Write-Host
-        Write-Host "Creating Content Version in the service for the application..." -ForegroundColor Yellow
-		$appId = $mobileApp.id;
-		$contentVersionUri = "mobileApps/$appId/$LOBType/contentVersions";
-		$contentVersion = MakePostRequest $contentVersionUri "{}";
+        Write-Host "`nPush application to Intune..." -ForegroundColor Yellow
+        $mobileApp = MakeRequest $verb $appUri ($mobileAppBody | ConvertTo-Json);
+        Write-Host ([string]::IsNullOrEmpty($mobileApp));
+
+        if ([string]::IsNullOrEmpty($mobileApp)) {
+            $appId = $mobileAppBody.id;
+        } else {
+            $appId = $mobileApp.id;
+        }
+        Write-Host $appId;
+
+        # Get the content version for the new app (this will always be 1 until the new app is committed).
+        Write-Host "`nCreating Content Version in the service for the application..." -ForegroundColor Yellow
+        $contentVersionUri = "mobileApps/$appId/$LOBType/contentVersions";
+        Write-Host $contentVersionUri;
+        $contentVersion = MakePostRequest $contentVersionUri "{}";
+        Write-Host $contentVersion;
 
         # Encrypt file and Get File Information
-        Write-Host
-        Write-Host "Ecrypting the file '$SourceFile'..." -ForegroundColor Yellow
+        Write-Host "`nEcrypting the file '$SourceFile'..." -ForegroundColor Yellow
         $encryptionInfo = EncryptFile $sourceFile $tempFile;
         $Size = (Get-Item "$sourceFile").Length
         $EncrySize = (Get-Item "$tempFile").Length
 
-        Write-Host
-        Write-Host "Creating the manifest file used to install the application on the device..." -ForegroundColor Yellow
+        Write-Host "`nCreating the manifest file used to install the application on the device..." -ForegroundColor Yellow
 
         [string]$manifestXML = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>items</key><array><dict><key>assets</key><array><dict><key>kind</key><string>software-package</string><key>url</key><string>{UrlPlaceHolder}</string></dict></array><key>metadata</key><dict><key>AppRestrictionPolicyTemplate</key> <string>http://management.microsoft.com/PolicyTemplates/AppRestrictions/iOS/v1</string><key>AppRestrictionTechnology</key><string>Windows Intune Application Restrictions Technology for iOS</string><key>IntuneMAMVersion</key><string></string><key>CFBundleSupportedPlatforms</key><array><string>iPhoneOS</string></array><key>MinimumOSVersion</key><string>9.0</string><key>bundle-identifier</key><string>bundleid</string><key>bundle-version</key><string>bundleversion</string><key>kind</key><string>software</string><key>subtitle</key><string>LaunchMeSubtitle</string><key>title</key><string>bundletitle</string></dict></dict></array></dict></plist>'
 
-        $manifestXML = $manifestXML.replace("bundleid","$bundleId")
-        $manifestXML = $manifestXML.replace("bundleversion","$identityVersion")
-        $manifestXML = $manifestXML.replace("bundletitle","$displayName")
+        $manifestXML = $manifestXML.replace("bundleid", "$bundleId")
+        $manifestXML = $manifestXML.replace("bundleversion", "$identityVersion")
+        $manifestXML = $manifestXML.replace("bundletitle", "$displayName")
 
         $Bytes = [System.Text.Encoding]::ASCII.GetBytes($manifestXML)
-        $EncodedText =[Convert]::ToBase64String($Bytes)
+        $EncodedText = [Convert]::ToBase64String($Bytes)
 
-		# Create a new file for the app.
-        Write-Host
-        Write-Host "Creating a new file entry in Azure for the upload..." -ForegroundColor Yellow
-		$contentVersionId = $contentVersion.id;
-		$fileBody = GetAppFileBody "$filename" $Size $EncrySize "$EncodedText";
-		$filesUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files";
-		$file = MakePostRequest $filesUri ($fileBody | ConvertTo-Json);
+        # Create a new file for the app.
+        Write-Host "`nCreating a new file entry in Azure for the upload..." -ForegroundColor Yellow
+        $contentVersionId = $contentVersion.id;
+        $fileBody = GetAppFileBody "$filename" $Size $EncrySize "$EncodedText";
+        $filesUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files";
+        $file = MakePostRequest $filesUri ($fileBody | ConvertTo-Json);
 	
-		# Wait for the service to process the new file request.
-        Write-Host
-        Write-Host "Waiting for the file entry URI to be created..." -ForegroundColor Yellow
-		$fileId = $file.id;
-		$fileUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files/$fileId";
-		$file = WaitForFileProcessing $fileUri "AzureStorageUriRequest";
+        # Wait for the service to process the new file request.
+        Write-Host "`nWaiting for the file entry URI to be created..." -ForegroundColor Yellow
+        $fileId = $file.id;
+        $fileUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files/$fileId";
+        $file = WaitForFileProcessing $fileUri "AzureStorageUriRequest";
 
         # Upload the content to Azure Storage.
-        Write-Host
-        Write-Host "Uploading file to Azure Storage..." -f Yellow
+        Write-Host "`nUploading file to Azure Storage..." -f Yellow
 
-		$sasUri = $file.azureStorageUri;
-		UploadFileToAzureStorage $file.azureStorageUri $tempFile;
+        $sasUri = $file.azureStorageUri;
+        UploadFileToAzureStorage $file.azureStorageUri $tempFile;
 
-		# Commit the file.
-        Write-Host
-        Write-Host "Committing the file into Azure Storage..." -ForegroundColor Yellow
-		$commitFileUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files/$fileId/commit";
-		MakePostRequest $commitFileUri ($encryptionInfo | ConvertTo-Json);
+        # Commit the file.
+        Write-Host "`nCommitting the file into Azure Storage..." -ForegroundColor Yellow
+        $commitFileUri = "mobileApps/$appId/$LOBType/contentVersions/$contentVersionId/files/$fileId/commit";
+        MakePostRequest $commitFileUri ($encryptionInfo | ConvertTo-Json);
 
-		# Wait for the service to process the commit file request.
-        Write-Host
-        Write-Host "Waiting for the service to process the commit file request..." -ForegroundColor Yellow
-		$file = WaitForFileProcessing $fileUri "CommitFile";
+        # Wait for the service to process the commit file request.
+        Write-Host "`nWaiting for the service to process the commit file request..." -ForegroundColor Yellow
+        $file = WaitForFileProcessing $fileUri "CommitFile";
 
-		# Commit the app.
-        Write-Host
-        Write-Host "Committing the file into Azure Storage..." -ForegroundColor Yellow
-		$commitAppUri = "mobileApps/$appId";
-		$commitAppBody = GetAppCommitBody $contentVersionId $LOBType;
-		MakePatchRequest $commitAppUri ($commitAppBody | ConvertTo-Json);
+        # Commit the app.
+        Write-Host "`nCommitting the file into Azure Storage..." -ForegroundColor Yellow
+        $commitAppUri = "mobileApps/$appId";
+        $commitAppBody = GetAppCommitBody $contentVersionId $LOBType;
+        MakePatchRequest $commitAppUri ($commitAppBody | ConvertTo-Json);
 
-        Write-Host "Removing Temporary file '$tempFile'..." -f Gray
+        Write-Host "`nRemoving Temporary file '$tempFile'..." -f Gray
         Remove-Item -Path "$tempFile" -Force
-        Write-Host
 
-        Write-Host "Sleeping for $sleep seconds to allow patch completion..." -f Magenta
+        Write-Host "`nSleeping for $sleep seconds to allow patch completion...`n" -f Magenta
         Start-Sleep $sleep
-        Write-Host
-
-	}
-	catch
-	{
-		Write-Host "";
-		Write-Host -ForegroundColor Red "Aborting with exception: $($_.Exception.ToString())";
-		throw;
-	}
+    }
+    catch {
+        Write-Host -ForegroundColor Red "`nAborting with exception: $($_.Exception.ToString())";
+        throw;
+    }
 }
 
 ####################################################
@@ -975,8 +971,8 @@ param
 $token = $Env:MSFT_TOKEN
 # Getting the authorization token
 $global:authToken = $authHeader = @{
-	'Authorization'="Bearer " + $token
-	}
+    'Authorization' = "Bearer " + $token
+}
 # 'ExpiresOn'=$token
 
 
@@ -999,17 +995,18 @@ $sleep = 30
 ####################################################
 
 try {
-	if($Env:android_apk_path){
-		Write-Host "Uploading APK at path $Env:android_apk_path"
-		Upload-AndroidLob -sourceFile $Env:android_apk_path -publisher $Env:android_publisher -description $Env:android_description -identityName $Env:android_identity_name -identityVersion $Env:android_identity_version -versionName $Env:android_version_name
-	}
+    if ($Env:android_apk_path) {
+        Write-Host "`nUploading APK at path $Env:android_apk_path"
+        Upload-AndroidLob -sourceFile $Env:android_apk_path -publisher $Env:android_publisher -description $Env:android_description -identityName $Env:android_identity_name -identityVersion $Env:android_identity_version -versionName $Env:android_version_name
+    }
 
-	if($Env:ios_ipa_path){
-		Write-Host "Uploading IPA at path $Env:ios_ipa_path"
-		Upload-iOSLob -sourceFile $Env:ios_ipa_path -displayName $Env:ios_display_name -publisher $Env:ios_publisher -description $Env:ios_description -bundleId $Env:ios_bundle_id -identityVersion $Env:ios_identity_version -versionNumber $Env:ios_version_number -expirationDateTime $Env:ios_expiration
-	}
-} catch {
-	Write-Host "An error occurred:"
-	Write-Host $_
-	Exit 1
+    if ($Env:ios_ipa_path) {
+        Write-Host "`nUploading IPA at path $Env:ios_ipa_path"
+       Upload-iOSLob -sourceFile $Env:ios_ipa_path -displayName $Env:ios_display_name -publisher $Env:ios_publisher -description $Env:ios_description -bundleId $Env:ios_bundle_id -identityVersion $Env:ios_identity_version -versionNumber $Env:ios_version_number -expirationDateTime $Env:ios_expiration
+    }
+}
+catch {
+    Write-Host "An error occurred:"
+    Write-Host $_
+    Exit 1
 }
